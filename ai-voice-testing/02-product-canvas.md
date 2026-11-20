@@ -102,13 +102,19 @@ profile:
 **Support owner:** Pod (Daniel + Adrian) through MVP. Handoff plan TBD for Slalom-wide adoption.
 
 ## 8 · Key metrics  🟡 Drafted — baselines TBD (G-03, G-04, G-11)
+
+**Baseline collection plan:**
+- **Before solution review (Dec 7):** Julian interview → G-03 (test volume) and G-04 (cycle time). These anchor the two primary metrics.
+- **During build phase:** Human eval UI → G-11 (score consistency). Requires both human scores and framework scores on the same recordings.
+- **Post-MVP:** G-14 (production escapes). Requires production call analytics and a feedback loop to attribute defects to testing gaps.
+
 | Metric | Category | Baseline | Target | How measured |
 |---|---|---|---|---|
-| Test scenarios generated per agent | Adoption | TBD (G-03) | 10× manual volume | Count automated scenarios vs. manual per agent change |
-| Time to test a voice agent change | Efficiency | TBD (G-04) | 80% reduction | Wall-clock time: manual test cycle vs. framework run |
+| Test scenarios generated per agent | Adoption | TBD — Julian interview (G-03) | 10× manual volume | Count automated scenarios vs. manual per agent change |
+| Time to test a voice agent change | Efficiency | TBD — Julian interview (G-04) | 80% reduction | Wall-clock time: manual test cycle vs. framework run |
 | Edge case / adversarial coverage | Quality | Near zero (manual) | 50+ scenarios per agent | Count of adversarial/edge scenarios executed per run |
-| Score consistency (human vs. framework) | Accuracy | TBD (G-11) | ≥0.85 correlation | Compare framework scores against human evaluator scores on same recordings |
-| Agent quality — false negatives | Guardrail | TBD | Maintain or improve | Defects found in production that the framework missed |
+| Score consistency (human vs. framework) | Accuracy | TBD — human eval UI during build (G-11) | ≥0.85 correlation | Compare framework scores against human evaluator scores on same recordings |
+| Agent quality — false negatives | Guardrail | Qualitative — anecdotal from Julian (G-14). Formal baseline deferred to post-MVP. | Maintain or improve | Production escapes tracked via call analytics once framework is in use |
 | Human eval throughput | Baseline tool | N/A | 50 recordings scored/hr | Eval UI usage metrics |
 
 ## 9 · Differentiation  🟢 Drafted

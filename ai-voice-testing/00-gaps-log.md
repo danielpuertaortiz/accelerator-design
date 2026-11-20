@@ -6,21 +6,22 @@ updated: 2026-11-18
 
 # Knowledge Gaps Log: AI Voice Testing
 
-**Open:** 6 (⚠️ 1 before solution review) · **In research:** 0 · **Answered:** 4 · **Parked:** 2
+**Open:** 7 (⚠️ 1 before solution review) · **In research:** 0 · **Answered:** 4 · **Parked:** 2
 
 ## Open & in research
 | ID | Gap (question or assumption) | Type | Priority | Raised in | Who can answer | How we'll find out | Owner | Status |
 |---|---|---|---|---|---|---|---|---|
 | G-01 | ~~Competitive positioning vs. existing tools~~ Answered — see below | Unknown | Before solution review | PS-01, PS-06 | AWS AI/ML SA, AgentCore team, market research | Desk research + SME interview | Daniel | Answered |
 | G-02 | ~~Is there AWS co-sell, funding or program alignment?~~ Answered — see below | Unknown | Before solution review | PS-03 | Jamie, Jake, AWS partner team | SME interview | Jamie | Answered |
-| G-03 | What does manual voice agent testing volume look like today — how many test calls per agent change? | Unknown | Before solution review | PS-04 | Julian Garrido Rodriguez, Connect delivery teams | SME interview | Julian | Open |
-| G-04 | How long does it take to manually test a voice agent change end-to-end (call + log analysis + fix cycle)? | Unknown | Before build | PS-04 | Julian Garrido Rodriguez | SME interview | Julian | Open |
+| G-03 | What does manual voice agent testing volume look like today — how many test calls per agent change? **Ask Julian:** "Roughly how many test calls does your team make per change? For example, if you update the prompt or add a new tool, how many calls do you make before you're confident it works?" | Unknown | Before solution review | PS-04 | Julian Garrido Rodriguez, Connect delivery teams | SME interview | Julian | Open |
+| G-04 | How long does it take to manually test a voice agent change end-to-end (call + log analysis + fix cycle)? **Ask Julian:** "End to end, from making a change to being confident it's working correctly, how long does that cycle take? Including calls, listening to recordings, checking transcripts, digging through CloudWatch logs, and any back-and-forth fixes. 30 minutes? A few hours? A full day?" | Unknown | Before solution review | PS-04 | Julian Garrido Rodriguez | SME interview | Julian | Open |
 | G-07 | What does the eval runner look like — agent-to-agent voice conversations? How do we simulate realistic voice input programmatically? Part of the architecture definition. | Decision | Before build | PS-06 | Pod + Julian | Technical spike / prototype | Adrian | Open |
 | G-08 | How do we evaluate voice-specific quality (pronunciation, timing, cadence, tone) beyond text correctness? | Unknown | Before build | PS-06 | AWS Polly/Connect teams, voice UX experts | Desk research + technical spike | Adrian | Open |
 | G-10 | Who are the early adopters — Julian's team, a specific Slalom engagement, or a customer team? Who feels the pain badly enough to try something new? | Unknown | Before build | PS-01 | Jamie, Jake, Julian | SME interview | Jamie | Open |
 | G-11 | What level of score consistency between human evaluators and the framework is acceptable? What's the tolerance? | Decision | Before build | PS-04 | Pod + Julian | Technical spike | Julian | Open |
 | G-12 | ~~Is Bedrock's human workforce service the right tool for gathering manual baselines?~~ Answered — see below | Unknown | Before build | PS-04 | AWS SA, pod | Desk research | Daniel | Answered |
 | G-13 | ⚠️ Are current Bedrock models good enough at processing and evaluating audio (pronunciation, timing, cadence, tone) to produce scores that match human judgment? This is the riskiest assumption — if model quality on audio isn't reliable, the framework can't replace human listeners. | Assumption | Before solution review | PS-06 | AWS Bedrock team, pod | Technical spike / prototype | Adrian | Open |
+| G-14 | What is the current rate of production escapes — voice agent defects that slip through manual testing and reach callers? **Ask Julian:** "Can you think of times a defect made it to production that testing should have caught?" Likely anecdotal, not a hard number. Useful as narrative color for solution review. Formal measurement deferred to post-MVP when production call analytics and the framework's feedback loop are in place. | Unknown | Deferred to build | Canvas-08 | Julian Garrido Rodriguez | SME interview (qualitative) | Julian | Open |
 
 ## Answered
 | ID | Answer | Evidence / source | Date | Updated in |
