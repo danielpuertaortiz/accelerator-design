@@ -114,7 +114,7 @@ profile:
 | Time to test a voice agent change | Efficiency | TBD — Julian interview (G-04) | 80% reduction | Wall-clock time: manual test cycle vs. framework run |
 | Edge case / adversarial coverage | Quality | Near zero (manual) | 50+ scenarios per agent | Count of adversarial/edge scenarios executed per run |
 | Score consistency (human vs. framework) | Accuracy | TBD — human eval UI during build (G-11) | ≥0.85 correlation | Compare framework scores against human evaluator scores on same recordings |
-| Agent quality — false negatives | Guardrail | Qualitative — anecdotal from Julian (G-14). Formal baseline deferred to post-MVP. | Maintain or improve | Production escapes tracked via call analytics once framework is in use |
+| Agent quality — false negatives | Guardrail | Qualitative — anecdotal from Julian (G-14). Formal baseline deferred to post-MVP. | ≤5% false negative rate | **Post-MVP sampling loop:** Framework scores a test run → human evaluators review a random sample of the same recordings via the eval UI → any recording the framework passed but the human failed is a false negative. Rate = (framework-pass ∩ human-fail) / total human-fail. Related to G-11 (score consistency measures overall correlation; this measures recall on defects specifically). |
 | Human eval throughput | Baseline tool | N/A | 50 recordings scored/hr | Eval UI usage metrics |
 
 ## 9 · Differentiation  🟢 Drafted
