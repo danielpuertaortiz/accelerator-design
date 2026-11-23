@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Voice Testing Product Canvas</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@300;400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--blue:#0C62FB;--dark:#002FAF;--cyan:#1BE1F2;--white:#FFFFFF;--lg:#E6E6E6;--tint:#E6EFFF;--dg:#666666;--ink:#111111}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--white);color:var(--ink);font-family:"Slalom Sans","Nunito Sans",Arial,sans-serif;font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1440px;margin:0 auto;padding:32px 24px}
+  header{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;border-bottom:4px solid var(--blue);padding-bottom:14px;margin-bottom:18px}
+  .eyebrow{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--blue)}
+  h1{margin:4px 0 0;font-size:30px;font-weight:800;color:var(--dark)}
+  .meta{font-size:12px;color:var(--dg);text-align:right}.meta b{color:var(--ink)}
+  .uvp-bar{background:var(--dark);color:var(--white);border-radius:12px;padding:18px 22px;margin-bottom:16px;font-size:20px;font-weight:700}
+  .uvp-bar span{color:var(--cyan)}
+  .grid{display:grid;grid-template-columns:repeat(10,1fr);grid-auto-rows:minmax(150px,auto);gap:10px}
+  .b{background:var(--tint);border-radius:12px;padding:16px 18px;grid-column:span 2}
+  .tall{grid-row:span 2}.wide{grid-column:span 5}
+  .b h3{margin:0 0 8px;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--dark)}
+  .b ul{margin:0;padding-left:18px}.b li+li{margin-top:4px}.b p{margin:0}
+  .b .sub{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--dg);margin:10px 0 4px}
+  .b.uvp{background:var(--dark);color:var(--white)}.b.uvp h3{color:var(--cyan)}.b.uvp .sub{color:var(--cyan)}
+  .b.unknown{background:#F4F4F4;border:2px dashed #B8B8B8;color:var(--dg)}.b.unknown h3{color:var(--dg)}
+  .b.unknown h3::after{content:" · not known yet";font-weight:700;text-transform:none;letter-spacing:0}
+  .tag{display:inline-block;font-size:10px;font-weight:800;padding:1px 6px;border-radius:999px;background:var(--white);color:var(--dark);border:1px solid var(--lg);margin-left:4px;vertical-align:1px}
+  footer{display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-top:12px}
+  .card{border:1px solid var(--lg);border-radius:12px;padding:14px 18px}
+  .card h4{margin:0 0 6px;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--blue)}
+  .counts{display:flex;gap:18px;flex-wrap:wrap;font-size:13px}.counts b{font-size:20px;color:var(--dark);display:block}
+  @media (max-width:900px){.grid{grid-template-columns:1fr}.b,.wide{grid-column:auto}.tall{grid-row:auto}header{flex-direction:column;align-items:flex-start}.meta{text-align:left}footer{grid-template-columns:1fr}}
+  @media print{@page{size:A3 landscape;margin:10mm}.wrap{padding:0;max-width:none}}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header>
+    <div><div class="eyebrow">Product canvas · Step 2 of 5</div><h1>AI Voice Testing</h1></div>
+    <div class="meta"><div><b>Pod:</b> Daniel Puerta, Adrian Gutierrez Rodriguez</div><div><b>Updated:</b> 2026-11-23 · <b>Status:</b> Ready for PRD</div></div>
+  </header>
+  <div class="uvp-bar">Automated voice agent testing that <span>hears what chat tests can't</span> — catch pronunciation, timing, and conversational defects at 10× the volume before customers do.</div>
+  <section class="grid">
+
+    <!-- PROBLEM (tall, col 1-2) -->
+    <article class="b tall">
+      <h3>Problem</h3>
+      <ul>
+        <li><strong>Human bottleneck on voice evaluation</strong> — every voice response must be heard by a person; caps test volume at a handful of calls per change</li>
+        <li><strong>Chat tests miss voice defects</strong> — text-based alternatives look fine on screen but miss pronunciation, timing, cadence, tone</li>
+        <li><strong>Edge cases go untested</strong> — human-on-call requirement leaves adversarial scenarios uncovered until production</li>
+      </ul>
+      <div class="sub">Solved today by</div>
+      <p>Manual phone calls, Connect chat tester (text only), post-hoc transcript/log review, CloudWatch + LLM via Miro, early DeepEval adoption (not voice-native)</p>
+    </article>
+
+    <!-- SOLUTION (col 3-4) -->
+    <article class="b">
+      <h3>Solution</h3>
+      <ul>
+        <li><strong>Scenario generator</strong> — from Connect flow definitions, transcripts, KB content</li>
+        <li><strong>Eval runner</strong> — direct API calls; Gemini for audio, Bedrock for text</li>
+        <li><strong>Voice quality scorer</strong> — Gemini API on audio for pronunciation, cadence, tone, timing</li>
+        <li><strong>Scorecard &amp; reporting</strong> — unified pass/fail dashboard with regression tracking</li>
+        <li><strong>Human eval UI</strong> — per-turn defect flagging on transcriptions; baselines + calibration</li>
+      </ul>
+    </article>
+
+    <!-- UVP (tall, col 5-6) -->
+    <article class="b tall uvp">
+      <h3>Unique value proposition</h3>
+      <p>One automated framework to generate, execute, and score voice agent tests at scale — so teams catch pronunciation, timing, and conversational defects before customers hear them.</p>
+      <div class="sub">Customer</div>
+      <p>Ship voice agents with confidence. Cover edge cases manual testing misses. Catch regressions before callers hear them.</p>
+      <div class="sub">Slalom</div>
+      <p>Faster delivery on Connect engagements + differentiated offering competitors don't have. Win-rate lever for pursuits.</p>
+    </article>
+
+    <!-- DIFFERENTIATION (col 7-8) -->
+    <article class="b">
+      <h3>Differentiation</h3>
+      <ul>
+        <li><strong>Voice-native evaluation</strong> — evaluates real audio, not just text</li>
+        <li><strong>End-to-end orchestration</strong> — scenario generation → execution → scoring → reporting</li>
+        <li><strong>Platform-extensible</strong> — Connect first; adapters for Genesys, Twilio later</li>
+        <li><strong>Human-calibrated scoring</strong> — eval UI produces ongoing baselines</li>
+        <li><strong>Slalom delivery moat</strong> — expertise accumulates in the framework design, not shared data</li>
+      </ul>
+    </article>
+
+    <!-- CUSTOMER SEGMENTS (tall, col 9-10) -->
+    <article class="b tall">
+      <h3>Customer segments</h3>
+      <p><strong>Users:</strong> Dev leads and engineers building voice agents in Amazon Connect</p>
+      <p><strong>Buyers:</strong> Engineering managers and contact center leaders at enterprises</p>
+      <p><strong>Beneficiaries:</strong> Customer teams (release confidence), Slalom (delivery speed + win rate)</p>
+      <div class="sub">Early adopters</div>
+      <p>TBD <span class="tag">G-10</span> — Julian's Connect practice team, an active Slalom engagement, or a customer team post-launch</p>
+    </article>
+
+    <!-- KEY METRICS (col 3-4) -->
+    <article class="b">
+      <h3>Key metrics</h3>
+      <ul>
+        <li><strong>Test volume:</strong> 10× manual <span class="tag">G-03</span></li>
+        <li><strong>Cycle time:</strong> 80% reduction <span class="tag">G-04</span></li>
+        <li><strong>Edge coverage:</strong> 50+ scenarios/agent</li>
+        <li><strong>Score consistency:</strong> ≥0.90 run-to-run <span class="tag">G-11</span></li>
+        <li><strong>Defect rate:</strong> flagged turns / total turns, trending down</li>
+        <li><strong>False negatives:</strong> ≤5% (post-MVP)</li>
+      </ul>
+    </article>
+
+    <!-- COMPETITIVE LANDSCAPE (col 7-8) -->
+    <article class="b">
+      <h3>Competitive landscape</h3>
+      <ul>
+        <li><strong>Manual phone testing</strong> — doesn't scale</li>
+        <li><strong>Connect chat tester</strong> — text only</li>
+        <li><strong>DeepEval</strong> — not voice-native</li>
+        <li><strong>AgentCore evals</strong> — no voice support</li>
+        <li><strong>CX Designer</strong> — limited, platform-tied</li>
+      </ul>
+      <p style="margin-top:8px;font-size:12px;color:var(--dg)">Positioning: orchestration layer that consumes these tools, not a competitor</p>
+    </article>
+
+    <!-- LEVEL OF EFFORT (wide, col 1-5) -->
+    <article class="b wide">
+      <h3>Level of effort</h3>
+      <p><strong>MVP: ~9–13 weeks</strong> (with AI coding tools) · 2 builders × ~5 hrs/week = <strong>5–7 months</strong></p>
+      <ul>
+        <li>Scenario generator: 1.5–2 wk · Eval runner: 2–3 wk · Voice scorer: 2–3 wk · Scorecard: 1–1.5 wk · Eval UI: 1–1.5 wk · Integration: 1–2 wk</li>
+        <li><strong>Run costs:</strong> Gemini API (audio eval), Bedrock API (text assertions), S3 storage, DynamoDB</li>
+        <li><strong>Support:</strong> Pod (Daniel + Adrian) through MVP; handoff plan TBD</li>
+      </ul>
+    </article>
+
+    <!-- GTM STRATEGY (wide, col 6-10) -->
+    <article class="b wide">
+      <h3>GTM strategy</h3>
+      <p><strong>Route:</strong> Slalom delivery engagements → embedded in Connect projects as a testing accelerator</p>
+      <ul>
+        <li><strong>Phase 1:</strong> Pod builds MVP; validate with Julian's team or active engagement</li>
+        <li><strong>Phase 2:</strong> Package as reusable accelerator for all Slalom Connect teams</li>
+        <li><strong>Phase 3:</strong> Differentiated capability in Connect proposals — win-rate lever</li>
+      </ul>
+      <p><strong>Value levers:</strong> Delivery efficiency (10× test volume) · Win rate (competitors don't have this) · Reusability across engagements</p>
+    </article>
+
+  </section>
+  <footer>
+    <div class="card">
+      <h4>Riskiest assumption &amp; top open gaps</h4>
+      <p><strong>⚠️ Can Google Gemini reliably evaluate voice quality from audio?</strong> The hybrid architecture commits to Gemini for audio — but we haven't validated that its scores on pronunciation, cadence, tone, and timing are consistent and meaningful. Must spike before build (Jan).</p>
+      <p style="margin-top:8px;font-size:12px;color:var(--dg)"><strong>Open gaps:</strong> G-03 (manual test volume baseline) · G-04 (manual cycle time baseline) · G-10 (early adopters) · G-11 (run-to-run consistency tolerance)</p>
+    </div>
+    <div class="card">
+      <h4>Evidence</h4>
+      <div class="counts">
+        <div><b>7</b>Validated</div>
+        <div><b>5</b>Assumed</div>
+        <div><b>4</b>Open gaps</div>
+      </div>
+    </div>
+  </footer>
+</main>
+</body>
+</html>
