@@ -15,18 +15,15 @@ feeds: [scenario-generator, eval-runner, voice-quality-scorer, scorecard, human-
 
 Every downstream capability — scenario generation, eval runner, voice scoring, reporting, human eval UI — needs data before it can work. Today that data lives in three disconnected places and devs access it manually. The data collection block is the first piece of architecture because everything else depends on it.
 
-## Intent and evidence
+## Evidence sources
 
-The data model separates **intent** (what the agent is configured to do) from **evidence** (what actually happened at runtime):
+The data model is built on runtime evidence — what actually happened during real conversations:
 
-| | Source | What it answers |
-|---|---|---|
-| **Intent** | Terraform | What is the agent *configured* to do? (flow paths, prompts, intents, guardrails) |
-| **Evidence** | S3 recordings | How did the agent *sound*? |
-| | S3 transcripts | What did the agent *say*? (requires Contact Lens) |
-| | CloudWatch | *How* did the agent process the request internally? (flow path, decisions, timing) |
-
-**Terraform is the anchor.** It defines the specification — every possible conversation path, prompt, guardrail, and action. The evidence sources show what actually happened against that spec. Without Terraform, the framework can still score recordings and transcripts, but it can't assess coverage, path correctness, or guardrail compliance.
+| Source | What it answers |
+|---|---|
+| S3 recordings | How did the agent *sound*? |
+| S3 transcripts | What did the agent *say*? (requires Contact Lens) |
+| CloudWatch | *How* did the agent process the request internally? (flow path, decisions, timing) |
 
 **All sources are optional, but at least one must be present.** Missing sources degrade gracefully — the test case fills in what it can and leaves the rest null. Downstream capabilities adapt based on what's present.
 
@@ -39,10 +36,8 @@ Contact metadata is cheap; full artifacts (transcripts, traces) are expensive. T
 │ STEP 1: SELECT  (cheap — one API call + local computation)         │
 │                                                                     │
 │  Enumerate contacts with metadata (flow, outcome, duration, ts)     │
-│  ──→ Stratified sampling (by intent, outcome, path, duration)       │
+│  ──→ Stratified sampling (by outcome, duration, flow, time window)  │
 │  ──→ Selected contact list (N + buffer for PII/quality filtering)   │
-│                                                                     │
-│  Parse Terraform ──→ spec model (intent)                            │
 └──────────────────────────────┬──────────────────────────────────────┘
                                ▼
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -53,9 +48,7 @@ Contact metadata is cheap; full artifacts (transcripts, traces) are expensive. T
 │    PII detection (pluggable)                                        │
 │                                                                     │
 │  Assemble into dataset:                                             │
-│    Correlate evidence with spec version                             │
 │    ──→ Partition (judge-calibration vs. eval — no overlap)          │
-│    ──→ Path coverage analysis                                       │
 │    ──→ PII summary                                                  │
 │    ──→ Immutable dataset snapshot                                   │
 └─────────────────────────────────────────────────────────────────────┘
@@ -71,30 +64,7 @@ Contact metadata is cheap; full artifacts (transcripts, traces) are expensive. T
 ### Re-running
 
 - **Different sampling criteria** → re-run both steps (new sample = new contacts = new collection). Still bounded by sample size.
-- **Different partitioning or coverage params** → re-run the assemble portion of Step 2 only (local, instant — same collected data, different split).
-
-## Spec-version matching
-
-The data model requires correlating evidence (contacts) with intent (Terraform spec). Connect does not stamp a flow version on the contact record, so the correlation uses deployment timestamps instead of per-contact version tracking.
-
-**Each collection run is pinned to one spec version.** The pipeline parses the current Terraform to produce the spec model and derives a deployment boundary — the timestamp when that spec version went live. Only contacts that occurred after the deployment boundary are eligible for selection.
-
-**Deployment boundary detection** uses the most precise signal available:
-
-| Signal | Precision | Source |
-|---|---|---|
-| CI/CD deployment logs | Highest — actual deploy timestamp | Pipeline-specific (CodePipeline, GitHub Actions, etc.) |
-| Terraform state version | High — `terraform apply` timestamp | S3-backed state with versioning enabled |
-| Git commit timestamp | Moderate — commit ≠ deploy, but usable when no pipeline metadata exists | Terraform repo history |
-
-The pipeline resolves the boundary from the first available signal in the order above. The resolved timestamp and its source are recorded in the dataset manifest for provenance.
-
-**Time window validation.** The user specifies a collection time window. If the pipeline detects a prior deployment boundary within that window (a spec change between two commits that modify the flow definition), it rejects the window and surfaces the boundary:
-
-- **Narrow** — The user constrains the window to fall within a single spec version.
-- **Split (future)** — The pipeline partitions the window by spec version, parsing each version's Terraform independently. Each partition produces its own spec model and coverage analysis.
-
-MVP supports narrowing only. Splitting requires parsing multiple Terraform versions and tracking which spec applies to which contact subset — deferred until multi-version comparison is an explicit requirement.
+- **Different partitioning params** → re-run the assemble portion of Step 2 only (local, instant — same collected data, different split).
 
 ## Execution model
 
@@ -156,18 +126,17 @@ Every test case uses the same schema regardless of origin. Fields are nullable �
 ```
 TEST CASE
 ├── test_case_id
-├── spec_version          (nullable — hash linking to Terraform spec)
-├── sources[]             (which sources are present)
+├── sources[]             (which evidence sources are present)
 ├── scenario
 │   ├── description
 │   ├── category          (happy-path, edge-case, adversarial)
-│   ├── target_path       (nullable — needs Terraform)
 │   └── caller_turns[]
 ├── evidence
-│   ├── contact_id        (nullable)
+│   ├── contact_id
 │   ├── recording_uri     (nullable — needs S3)
 │   ├── transcript        (nullable — needs Contact Lens)
 │   └── execution_trace   (nullable — needs CloudWatch)
+├── size_metadata         (word count, duration, event count — for downstream token budgets)
 └── pii_flags             (from PII detection)
 ```
 
@@ -188,28 +157,26 @@ The split, sampling strategy, and random seed are recorded for reproducibility.
 Each build produces an **immutable dataset snapshot**. Building with different parameters creates a new version, not an overwrite. The dataset contains:
 
 - **Manifest** — provenance, sources used, sampling params, stats, PII summary
-- **Spec model** — Terraform-extracted intent (flow paths, prompts, guardrails)
 - **Test cases** — unified schema with evidence
-- **Coverage analysis** — which spec paths are covered by the dataset
 - **Partition map** — judge-calibration vs. eval assignment
 
 ## How this feeds downstream capabilities
 
 | Canvas capability | What it consumes |
 |---|---|
-| **Scenario generator** | Spec model (paths, prompts, intents) + existing test cases (conversation patterns) + coverage gaps |
+| **Scenario generator** | Existing test cases (conversation patterns) to derive new scenarios |
 | **Eval runner** | Test cases with evidence and `sources[]` tags |
 | **Voice quality scorer** | Recording URIs + transcripts |
-| **Scorecard / reporting** | Manifest (provenance) + coverage (gap analysis) |
+| **Scorecard / reporting** | Manifest (provenance, sampling params, PII summary) |
 | **Human eval UI** | Recording URIs + transcripts for human reviewers to flag defects per turn |
 
 ## Design principles
 
 | Principle | How it's applied |
 |---|---|
-| **Intent vs. evidence** | Terraform defines the spec (what should happen); runtime sources provide evidence (what did happen) |
+| **Evidence-first** | The data model is built on runtime evidence — real conversations, not configured intent. Terraform-based spec analysis is a future extension for coverage and synthetic generation |
 | **Sample-before-collect** | Stratified sampling on cheap metadata before expensive collection — cost scales with sample size, not contact volume |
-| **Data provenance** | Every artifact traces back to its source contact, flow version, and timestamp |
+| **Data provenance** | Every artifact traces back to its source contact and timestamp |
 | **Train/eval separation** | Judge-calibration and eval sets never overlap |
 | **Dataset versioning** | Immutable snapshots; new build = new version |
 | **PII handling** | No unredacted PII reaches any model. Audio stays in source bucket; redaction tier determines what can be scored |
@@ -217,8 +184,17 @@ Each build produces an **immutable dataset snapshot**. Building with different p
 | **Batch execution** | Both steps process data in batches with checkpoint/resume; concurrency bounded per AWS service |
 | **Size awareness** | Collection captures content size metadata so downstream can plan token budgets without re-reading artifacts |
 
+## Future extension: Terraform integration
+
+Terraform contains the agent's configured intent — flow paths, prompts, guardrails, actions. This is valuable for two capabilities that are out of scope for MVP:
+
+- **Coverage analysis** — Which configured paths have been exercised by real conversations? Which haven't?
+- **Spec-driven scenario generation** — Generate synthetic test cases targeting untested paths.
+
+Both require parsing Terraform into a spec model, matching it to contacts by deployment timestamp (Connect doesn't stamp a flow version on the contact record), and solving version correlation across time windows. The collector extensibility contract supports this — a Terraform collector would be a new collector, not a change to the assembler.
+
+Deferred until synthetic scenario generation is an explicit requirement.
+
 ## Open questions
 
-1. **Terraform repo access** — Does the tool read from a local checkout or clone the repo?
-2. ~~**Flow version tracking**~~ — Resolved. Each collection run is pinned to one spec version via deployment boundary detection. See "Spec-version matching" section.
-3. **Cross-account access** — Enterprise setups may have Connect, S3, and CloudWatch in different accounts. IAM implications for collection.
+1. **Cross-account access** — Enterprise setups may have Connect, S3, and CloudWatch in different accounts. IAM implications for collection.
