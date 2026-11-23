@@ -73,6 +73,29 @@ Contact metadata is cheap; full artifacts (transcripts, traces) are expensive. T
 - **Different sampling criteria** → re-run both steps (new sample = new contacts = new collection). Still bounded by sample size.
 - **Different partitioning or coverage params** → re-run the assemble portion of Step 2 only (local, instant — same collected data, different split).
 
+## Spec-version matching
+
+The data model requires correlating evidence (contacts) with intent (Terraform spec). Connect does not stamp a flow version on the contact record, so the correlation uses deployment timestamps instead of per-contact version tracking.
+
+**Each collection run is pinned to one spec version.** The pipeline parses the current Terraform to produce the spec model and derives a deployment boundary — the timestamp when that spec version went live. Only contacts that occurred after the deployment boundary are eligible for selection.
+
+**Deployment boundary detection** uses the most precise signal available:
+
+| Signal | Precision | Source |
+|---|---|---|
+| CI/CD deployment logs | Highest — actual deploy timestamp | Pipeline-specific (CodePipeline, GitHub Actions, etc.) |
+| Terraform state version | High — `terraform apply` timestamp | S3-backed state with versioning enabled |
+| Git commit timestamp | Moderate — commit ≠ deploy, but usable when no pipeline metadata exists | Terraform repo history |
+
+The pipeline resolves the boundary from the first available signal in the order above. The resolved timestamp and its source are recorded in the dataset manifest for provenance.
+
+**Time window validation.** The user specifies a collection time window. If the pipeline detects a prior deployment boundary within that window (a spec change between two commits that modify the flow definition), it rejects the window and surfaces the boundary:
+
+- **Narrow** — The user constrains the window to fall within a single spec version.
+- **Split (future)** — The pipeline partitions the window by spec version, parsing each version's Terraform independently. Each partition produces its own spec model and coverage analysis.
+
+MVP supports narrowing only. Splitting requires parsing multiple Terraform versions and tracking which spec applies to which contact subset — deferred until multi-version comparison is an explicit requirement.
+
 ## Execution model
 
 Both pipeline steps process data in batches with checkpoint/resume. Batch size is configurable per step.
@@ -197,5 +220,5 @@ Each build produces an **immutable dataset snapshot**. Building with different p
 ## Open questions
 
 1. **Terraform repo access** — Does the tool read from a local checkout or clone the repo?
-2. **Flow version tracking** — Connect doesn't stamp the flow version on the contact record. How do we match which spec version served a given contact?
+2. ~~**Flow version tracking**~~ — Resolved. Each collection run is pinned to one spec version via deployment boundary detection. See "Spec-version matching" section.
 3. **Cross-account access** — Enterprise setups may have Connect, S3, and CloudWatch in different accounts. IAM implications for collection.
