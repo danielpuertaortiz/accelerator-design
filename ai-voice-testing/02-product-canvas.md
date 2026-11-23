@@ -49,7 +49,7 @@ profile:
 ## 4 · Solution  🟢 Drafted — all architecture decisions resolved
 | Problem | Capability that solves it |
 |---|---|
-| Manual test creation is slow and inconsistent | **Scenario generator** — Automatically generate test scenarios from Connect flow definitions (JSON), existing call transcripts, and knowledge base content. Covers happy path, edge cases, and adversarial inputs. |
+| Manual test creation is slow and inconsistent | **Scenario generator** — Automatically generate test scenarios from existing call transcripts, conversation patterns, and knowledge base content. Covers happy path, edge cases, and adversarial inputs. Flow-definition-driven generation (Terraform) is a future extension. |
 | Every test requires a human on a phone call | **Eval runner** — Direct API calls with the hybrid model split (G-07). For existing recordings: passes audio to Gemini (voice quality) and transcripts/traces to Bedrock (text assertions). For generated scenarios without recordings: executes against Connect/Lex/Bedrock APIs to produce transcripts and traces, then scores via Bedrock. No telephony — no phone calls, no Polly, no agent-to-agent voice. |
 | Voice quality can only be judged by listening | **Voice quality scorer** — Evaluate pronunciation, timing, cadence, and conversational quality of agent responses. **Hybrid architecture (G-15):** Calls Google Gemini API directly, passing audio for voice quality evaluation. Bedrock handles all text-based assertions. Direct API integration — no SDK wrapper or middleware needed. |
 | Results are scattered across logs and transcripts | **Scorecard and reporting** — Unified dashboard showing pass/fail per scenario, quality scores, regressions from previous runs, and drill-down to specific conversation turns. |
@@ -83,17 +83,17 @@ profile:
 
 ## 7 · Level of effort  🟡 Drafted — estimates adjusted for AI-assisted development
 **MVP build (with AI coding tools — Claude Code, Copilot, etc.):**
-- Scenario generator (Connect flow parser + transcript analyzer): ~1.5–2 weeks
+- Scenario generator (transcript + conversation pattern analyzer): ~1–1.5 weeks
 - Eval runner (direct API, hybrid model split): ~2–3 weeks
 - Voice quality scorer (Gemini API integration for audio + Bedrock for text): ~2–3 weeks
-- Scorecard / reporting: ~1–1.5 weeks
+- Scorecard / reporting: ~1 week
 - Human eval UI (baseline collection + per-turn defect flagging): ~1–1.5 weeks
 - Integration and testing: ~1–2 weeks
-- **Total estimate: ~9–13 weeks**
+- **Total estimate: ~8–11 weeks**
 
 **Why the reduction:** AI coding tools accelerate scaffolding, boilerplate, AWS SDK integration, and UI buildout — the well-defined parts. The estimates stay conservative on the pieces that require design decisions and spike results (eval runner architecture, voice scorer model integration), where the bottleneck is thinking, not typing.
 
-**Capacity:** ~5 hrs/week per builder (2 builders). At that rate, MVP is roughly **5–7 months**. Solution review week of Dec 7; build starts January.
+**Capacity:** ~5 hrs/week per builder (2 builders). At that rate, MVP is roughly **4–6 months**. Solution review week of Dec 7; build starts January.
 
 **Run-cost drivers:**
 - Google Gemini API calls for audio evaluation (per-recording, voice quality assertions)
@@ -131,7 +131,7 @@ profile:
 ## Coherence check
 - [x] Features ↔ problems — Each problem in block 1 maps to a specific capability in block 4
 - [x] UVP ↔ early adopters — UVP speaks to dev leads building Connect agents; early adopters are exactly that audience
-- [ ] Effort ↔ capacity — 9–13 weeks of work at 5 hrs/week = 5–7 months. More realistic with AI coding tools, but still tight on part-time capacity. Prioritization of capabilities may still be needed.
+- [ ] Effort ↔ capacity — 8–11 weeks of work at 5 hrs/week = 4–6 months. More realistic with AI coding tools, but still tight on part-time capacity. Prioritization of capabilities may still be needed.
 - [x] Metrics ↔ UVP — "10× volume" and "score consistency" directly validate the UVP claims
 
 ## Riskiest assumption
