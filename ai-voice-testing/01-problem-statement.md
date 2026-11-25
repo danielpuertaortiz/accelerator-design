@@ -15,7 +15,7 @@ updated: 2026-11-18
 # Problem Statement: AI Voice Testing
 
 ## The statement
-> **Dev leads building voice agents in Amazon Connect** struggle to **test and validate agent behavior at scale** because **every voice response must be heard by a human to evaluate pronunciation, timing, and conversational quality — capping test volume and leaving adversarial and edge cases uncovered.** This matters now because **enterprises are rapidly shifting from scripted IVR to agentic voice, and Slalom sees high demand with limited delivery capacity.** We'll know it's solved when **the framework produces voice quality scores consistent with human evaluators while increasing test volume by an order of magnitude** — baseline to be established via a custom eval UI that collects human scores on voice recordings. [TBD — G-03, G-04, G-11]
+> **Dev leads building voice agents in Amazon Connect** struggle to **test and validate agent behavior at scale** because **every voice response must be heard by a human to evaluate pronunciation, timing, and conversational quality — capping test volume and leaving adversarial and edge cases uncovered.** This matters now because **enterprises are rapidly shifting from scripted IVR to agentic voice, and Slalom sees high demand with limited delivery capacity.** We'll know it's solved when **the framework produces voice quality scores consistent with human evaluators while increasing test volume by an order of magnitude** — Julian's team currently runs up to 100 manual calls per change, taking hours (simple) to days (complex). Baseline consistency threshold to be established via a custom eval UI that collects human scores on voice recordings. [Remaining TBD — G-11]
 
 ## 01 · User segment  🟡 Drafted with gaps
 **Primary user:** Dev leads and engineers who build voice and chat agents in Amazon Connect — they configure instructions, actions, knowledge bases, guardrails and handoff rules to human agents. Amazon Connect is the beachhead; the framework should be extensible to other agentic voice platforms in the future. (From Solution 3 notes: persona "Rosa, dev lead")
@@ -36,8 +36,8 @@ The two pains are linked: **a human must hear every voice response to evaluate i
 - Contact search & transcripts in Connect console (post-hoc, not preventive)
 - CloudWatch logs + manual LLM analysis via Miro
 - DeepEval — Julian mentioned customers are starting to use it, but it's not voice-native
-**Severity / frequency:** Every agent change requires re-testing. Low test volume because each test requires a human listener. Hard to cover adversarial and edge cases at that pace. Confirmed by the Amazon Connect team. (From Solution 3 notes)
-**Evidence:** Julian Garrido Rodriguez (Slalom Amazon Connect practice, builds Connect solutions for banks and enterprises) confirmed the pain directly in the Nov 13 session. Jamie sees "lots of demand and little capacity at Slalom in voice AI." Jake notes AWS-launched features tend to be limited and don't integrate well with customers' mixed solutions. (From transcript + Solution 3 notes)
+**Severity / frequency:** Every agent change requires re-testing — Julian's team makes up to 100 human-placed calls per change to cover different scenarios. Simple changes take several hours end-to-end; moderate/complex changes take days. Voice always requires manual testing for persona tuning (accent, tone, speed, empathy) and catching pronunciation issues (e.g., acronyms, numbers read as "3,4,4,5" instead of "3,445"). Tools like Kiro speed up the logs/fix cycle, but calling is still manual. (G-03, G-04 — SME interview, Julian Garrido Rodriguez, 2026-11-25)
+**Evidence:** Julian Garrido Rodriguez (Slalom Amazon Connect practice, builds Connect solutions for banks and enterprises) confirmed the pain directly in the Nov 13 session and again in a Nov 25 follow-up: up to 100 manual test calls per change, hours-to-days cycle, voice issues (pronunciation, empathy, persona) only caught on real calls. Jamie sees "lots of demand and little capacity at Slalom in voice AI." Jake notes AWS-launched features tend to be limited and don't integrate well with customers' mixed solutions. (From transcript + Solution 3 notes + SME interview 2026-11-25)
 
 ## 03 · Business context  ✅ Drafted
 **Why now:** Enterprises are rapidly adopting agentic voice experiences in contact centers (Julian: "a lot of companies are transforming and moving to this type of experiences"). Amazon Connect recently launched Agentic CX Designer (acquired NLX). The shift from scripted IVR to agentic voice means testing complexity has exploded — agents handle open-ended conversations, not fixed decision trees. Slalom just finished a bank implementation and sees growing pipeline. (From transcript)
@@ -48,8 +48,8 @@ The two pains are linked: **a human must hear every voice response to evaluate i
 ## 04 · Success criteria  🟡 Drafted with gaps
 | Metric | Type | Baseline | Target | By when | How we'll measure |
 |---|---|---|---|---|---|
-| Test scenarios generated per agent | Primary | [TBD — see G-03] | [TBD] | [TBD] | Count automated scenarios vs. manual |
-| Time to test a voice agent change | Primary | [TBD — see G-04] | [TBD] | [TBD] | Measure manual vs. framework time |
+| Test scenarios generated per agent | Primary | ~100 manual calls/change (G-03) | 10× coverage (1,000+ automated scenarios) | [TBD] | Count automated scenarios vs. manual |
+| Time to test a voice agent change | Primary | Hours (simple) to days (complex) (G-04) | Minutes per change | [TBD] | Measure manual vs. framework time |
 | Edge case / adversarial coverage | Primary | [TBD — see G-05] | [TBD] | [TBD] | [TBD] |
 | Score consistency (human vs. framework) | Primary | [TBD — see G-11] | [TBD] | [TBD] | Compare framework scores against human evaluator scores for the same conversations |
 | Agent quality (false negatives) | Guardrail | [TBD] | Maintain | Ongoing | [TBD] |
@@ -66,13 +66,15 @@ The two pains are linked: **a human must hear every voice response to evaluate i
 - Jake's caution: AWS-launched features tend to be limited, very platform-tied, and don't integrate well with customers' mixed solutions — the framework should account for this
 
 ## 06 · Open questions  ✅ Drafted
-- [ ] ⚠️ Are current Bedrock models good enough at processing and evaluating audio (pronunciation, timing, cadence, tone) to produce scores that match human judgment? If model quality on audio isn't reliable, the framework can't replace human listeners. (G-13 — riskiest assumption)
+- [x] ~~Bedrock audio evaluation (G-13)~~ — Answered: Nova Sonic 2.5 transcribes first, can't evaluate voice natively. Resolved by hybrid architecture (G-15): Gemini for audio, Bedrock for text.
 - [x] ~~Competitive positioning (G-01)~~ — Answered: the framework is an orchestration layer, not a competitor. Tools like DeepEval, AgentCore, and Connect analytics are pluggable components it consumes. The moat is extensibility across voice platforms.
 - [x] ~~AWS co-sell / funding alignment (G-02)~~ — Answered: no co-sell assumed for MVP; scoped as customer efficiency
-- [ ] What does manual testing volume/time look like today (baseline metrics)? (G-03, G-04)
-- [ ] What does the eval runner look like — agent-to-agent voice conversations? How do we simulate realistic voice input? (G-07, Owner: Adrian)
-- [ ] How do we evaluate voice-specific quality (pronunciation, timing, cadence) vs. just text correctness? (G-08, Owner: Adrian)
+- [x] ~~Manual testing volume/time baselines (G-03, G-04)~~ — Answered: up to 100 manual calls per change; hours (simple) to days (complex). SME interview, Julian, 2026-11-25.
+- [x] ~~Eval runner approach (G-07)~~ — Answered: direct API calls, no telephony. Gemini for audio, Bedrock for text.
+- [x] ~~Voice-specific quality evaluation (G-08)~~ — Answered: resolved by G-13/G-15 hybrid architecture.
 - [x] ~~Audio chunk access (G-06)~~ — Answered: framework will use complete call recordings from S3
+- [ ] Score consistency threshold (G-11) — What run-to-run reproducibility is acceptable?
+- [ ] Early adopters (G-10) — Who tries this first?
 - Parked: G-05 (edge case coverage) — depends on each business's dataset, not the framework's scope
 - Parked: G-09 (Agentic CX Designer) — out of scope for MVP
 

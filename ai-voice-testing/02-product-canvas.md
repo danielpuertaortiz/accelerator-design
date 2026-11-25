@@ -5,7 +5,7 @@ pod: Daniel Puerta, Adrian Gutierrez Rodriguez
 step: 2 of 5
 status: ready-for-prd
 updated: 2026-11-23
-evidence: { validated: 7, assumed: 5, gaps: 4 }
+evidence: { validated: 9, assumed: 5, gaps: 2 }
 profile:
   value_play: customer-efficiency
   audiences: [Customer, Slalom]
@@ -19,14 +19,14 @@ profile:
 
 | Block | Status |
 |---|---|
-| 1 Problem | 🟢 | 2 Segments | 🟢 | 3 UVP | 🟢 | 4 Solution | 🟢 | 5 Competitive | 🟢 | 6 GTM | 🟡 | 7 Effort | 🟡 | 8 Metrics | 🟡 | 9 Differentiation | 🟢 |
+| 1 Problem | 🟢 | 2 Segments | 🟢 | 3 UVP | 🟢 | 4 Solution | 🟢 | 5 Competitive | 🟢 | 6 GTM | 🟡 | 7 Effort | 🟡 | 8 Metrics | 🟢 | 9 Differentiation | 🟢 |
 
 ## 1 · Problem  🟢 Drafted
-1. **Human bottleneck on voice evaluation** — Every voice response must be heard by a person to evaluate pronunciation, timing, cadence, and conversational quality. This caps test volume at a handful of calls per change.
-2. **Chat tests miss voice defects** — Text-based alternatives (Connect's chat tester, transcript review) look fine on screen but miss how responses actually sound. "8880" reads correctly but sounds wrong spoken aloud.
+1. **Human bottleneck on voice evaluation** — Every voice response must be heard by a person to evaluate pronunciation, timing, cadence, and conversational quality. Julian's team makes up to 100 manual calls per change; simple changes take hours, complex ones take days. (G-03, G-04)
+2. **Chat tests miss voice defects** — Text-based alternatives (Connect's chat tester, transcript review) look fine on screen but miss how responses actually sound. "8880" reads correctly but sounds wrong spoken aloud. Julian confirmed: pronunciation (acronyms, numbers like "3,445" vs "3,4,4,5"), empathy tuning, and persona adjustments (accent, tone, speed) are only caught by humans on real calls. (G-14)
 3. **Edge and adversarial cases go untested** — Because each test requires a human on a call, teams can't cover the long tail of scenarios — accent variations, interruptions, ambiguous intents, noisy environments — leaving regressions undiscovered until production.
 
-**How it's solved today:** Manual phone calls one at a time, Connect's built-in chat test tool (text only), post-hoc transcript and log review in the Connect console, CloudWatch logs pasted into LLMs via Miro for diagnosis, and early adoption of DeepEval (not voice-native). Julian confirmed: "it's a lot of manual testing."
+**How it's solved today:** Manual phone calls one at a time (up to 100 per change, all human-placed), Connect's built-in chat test tool (text only), post-hoc transcript and log review in the Connect console, CloudWatch logs pasted into LLMs via Miro for diagnosis, and early adoption of DeepEval (not voice-native). The team uses the ACXD / AI Agents framework (replacing IVR flows). Tools like Kiro speed up the logs/fix cycle but calling is still manual.
 
 ## 2 · Customer segments  🟢 Drafted
 **Users:** Dev leads and engineers who build voice and chat agents in Amazon Connect — they configure instructions, actions, knowledge bases, guardrails, and handoff rules. (Persona: "Rosa, dev lead")
@@ -58,7 +58,7 @@ profile:
 ## 5 · Competitive landscape  🟢 Drafted
 | Alternative | Type | Gap for our segment | Source |
 |---|---|---|---|
-| Manual phone testing | Status quo | Doesn't scale — caps at a handful of tests per change. No structured coverage. | Julian interview |
+| Manual phone testing | Status quo | Doesn't scale — up to 100 human-placed calls per change, taking hours to days. No structured coverage. | Julian interview (2026-11-25) |
 | Connect chat test tool | Built-in | Text only. Misses pronunciation, timing, cadence, tone — all voice-specific defects. | Julian interview |
 | Connect contact search + transcripts | Built-in | Post-hoc and reactive. Finds problems after customers experience them, not before. | Julian interview |
 | DeepEval | OSS framework | Customers starting to use it, but it's not voice-native. Evaluates text, not audio quality. | Julian interview |
@@ -103,20 +103,20 @@ profile:
 
 **Support owner:** Pod (Daniel + Adrian) through MVP. Handoff plan TBD for Slalom-wide adoption.
 
-## 8 · Key metrics  🟡 Drafted — baselines TBD (G-03, G-04, G-11)
+## 8 · Key metrics  🟢 Drafted — baselines confirmed (G-03, G-04, G-14); G-11 TBD during build
 
 **Baseline collection plan:**
-- **Before solution review (Dec 7):** Julian interview → G-03 (test volume) and G-04 (cycle time). These anchor the two primary metrics.
+- **✅ Confirmed (2026-11-25):** Julian interview → G-03 (up to 100 manual calls/change) and G-04 (hours to days per cycle). These anchor the two primary metrics.
+- **✅ Confirmed (2026-11-25):** Julian interview → G-14 (voice issues regularly escape to real calls — pronunciation, persona, empathy). Qualitative baseline established; formal false-negative rate deferred to post-MVP.
 - **During build phase:** Technical spike → G-11 (score consistency). Run the same recordings through the scorer multiple times with identical config; measure run-to-run variance in scores and verdicts.
-- **Post-MVP:** G-14 (production escapes). Requires production call analytics and a feedback loop to attribute defects to testing gaps.
 
 | Metric | Category | Baseline | Target | How measured |
 |---|---|---|---|---|
-| Test scenarios generated per agent | Adoption | TBD — Julian interview (G-03) | 10× manual volume | Count automated scenarios vs. manual per agent change |
-| Time to test a voice agent change | Efficiency | TBD — Julian interview (G-04) | 80% reduction | Wall-clock time: manual test cycle vs. framework run |
+| Test scenarios generated per agent | Adoption | ~100 manual calls/change (G-03, Julian 2026-11-25) | 10× manual volume (1,000+ automated scenarios) | Count automated scenarios vs. manual per agent change |
+| Time to test a voice agent change | Efficiency | Hours (simple) to days (complex) (G-04, Julian 2026-11-25) | Minutes per change (80%+ reduction) | Wall-clock time: manual test cycle vs. framework run |
 | Edge case / adversarial coverage | Quality | Near zero (manual) | 50+ scenarios per agent | Count of adversarial/edge scenarios executed per run |
 | Score consistency (run-to-run) | Reliability | TBD — technical spike during build (G-11) | ≥0.90 agreement across repeated runs | Pass the same recording to the same scoring agent N times with identical prompt/model/config; measure score and verdict variance across runs |
-| Agent quality — false negatives | Guardrail | Qualitative — anecdotal from Julian (G-14). Formal baseline deferred to post-MVP. | ≤5% false negative rate | **Post-MVP sampling loop:** Framework scores a test run → human evaluators review a random sample of the same recordings via the eval UI → any recording the framework passed but the human failed is a false negative. Rate = (framework-pass ∩ human-fail) / total human-fail. Related to G-11 (G-11 measures run-to-run reproducibility; this measures whether the scorer catches real defects). |
+| Agent quality — false negatives | Guardrail | Qualitative — Julian confirmed voice issues regularly escape manual testing: pronunciation (acronyms, number formatting), persona tuning (accent, tone, speed, empathy). Formal false-negative rate deferred to post-MVP. (G-14, Julian 2026-11-25) | ≤5% false negative rate | **Post-MVP sampling loop:** Framework scores a test run → human evaluators review a random sample of the same recordings via the eval UI → any recording the framework passed but the human failed is a false negative. Rate = (framework-pass ∩ human-fail) / total human-fail. Related to G-11 (G-11 measures run-to-run reproducibility; this measures whether the scorer catches real defects). |
 | Conversation defect rate | Quality | TBD — human eval UI during build | Trend downward across agent iterations | Human reviewers read the transcription in the eval UI and flag defects per turn (e.g., wrong info, pronunciation issue, awkward handoff, guardrail violation, hallucination). Defect rate = flagged turns / total turns in the conversation. Tracked per agent version to show whether changes improve or regress quality. |
 | Human eval throughput | Baseline tool | N/A | 50 recordings scored/hr | Eval UI usage metrics |
 
