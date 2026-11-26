@@ -136,7 +136,13 @@ COLLECTOR ITEM
 
 **Snapshot** fetches full evidence for selected conversations only, applies PII redaction, assembles into the unified test case schema, and partitions into calibration vs. eval sets (see below).
 
-**Refresh:** The dev runs `/build` again. Collect and merge show the delta — new conversations since last build.
+### Promoting production cases into the golden dataset
+
+Production conversations land in the same S3 buckets and CloudWatch log groups the collectors already scan. There's no separate flagging mechanism — when the dev wants new test cases from production, they run `/build` again.
+
+The collectors find all conversations since the last snapshot. Merge shows the delta — new conversations that aren't already in the dataset. The dev browses the new inventory, selects the cases worth adding (a tricky escalation that exposed a bug, a pronunciation edge case from a real caller), tags them, and snapshots. New version, immutable.
+
+This means the golden dataset grows organically from production without a separate promotion pipeline. The same skill, the same collectors, the same interactive flow. The only difference is intent: the first `/build` creates the dataset from scratch; subsequent runs extend it with fresh production data.
 
 ### Dataset partitioning: calibration vs. eval
 
@@ -476,11 +482,13 @@ Comprehend's 100 KB input limit means oversized transcripts are chunked before d
 6. /report --validate v3-run-2 baseline-1
                                 Check: does the automated eval agree with the human?
 
-7. /build                      Refresh golden dataset with new production conversations
+7. /build                      Collectors scan the same S3/CW locations — find new
+                                production conversations since last snapshot. Dev picks
+                                cases to add (e.g., a tricky escalation found in prod).
    /baseline --dataset v4      Score new calibration cases + eval sample
 ```
 
-Steps 3–5 are the fast loop. Steps 6–7 are occasional — when the dev wants to validate the automated eval or bring in fresh data.
+Steps 3–5 are the fast loop. Steps 6–7 are occasional — when the dev wants to validate the automated eval or bring in fresh production data. No separate promotion pipeline: production artifacts already live where the collectors look.
 
 ---
 
