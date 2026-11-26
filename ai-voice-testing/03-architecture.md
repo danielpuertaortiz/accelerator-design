@@ -283,13 +283,15 @@ EVAL RUN
 
 ### Resource constraints
 
-The runner uses size metadata from data collection to plan within model context windows — oversized transcripts, traces, and audio are chunked or summarized before scoring.
+The runner uses size metadata from data collection to plan within model limits. Without this, a single long transcript or recording could exceed a model's context window or input limit and fail silently.
 
-| Constraint | Mechanism |
-|---|---|
-| **Context window** | Size metadata drives chunking/summarization decisions per test case |
-| **API quotas** | Configurable concurrency per model API (Gemini, Bedrock) |
-| **Cost** | Per-run token budget with dry-run mode for cost estimation |
+| Constraint | Strategy | Why it's architectural |
+|---|---|---|
+| **Transcript > context window** | Chunk by conversation turns, score each chunk, merge results | Determines how the runner composes scoring prompts — affects assertion design |
+| **Trace > context window** | Summarize before sending to model | Lossy — the runner decides what trace detail to drop, which affects flow correctness assertions |
+| **Audio > Gemini input limit** | Split into segments, average voice quality scores | Score is an approximation — downstream reporting must account for segment variance |
+| **API quotas** | Configurable concurrency per model API (Gemini, Bedrock) | Prevents throttling; default conservative to avoid quota exhaustion on shared accounts |
+| **Cost** | Per-run token budget; dry-run mode for cost estimation before scoring | A single eval run can invoke hundreds of model calls — budget prevents runaway spend |
 
 ---
 
