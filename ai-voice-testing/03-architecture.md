@@ -44,7 +44,7 @@ Four capabilities, each exposed as a skill that runs within Claude Code, Kiro, o
 | **Skills with agent workflows** | Each capability is a skill orchestrating agents under the hood. The dev interacts at the skill level |
 | **Dev drives, AI assists** | AI is a tool for search, classification, scoring — the dev makes decisions |
 | **PII at fetch time** | Metadata travels freely; content is PII-redacted the moment it's read |
-| **Immutable outputs** | Datasets, eval runs, human scores — all versioned, never overwritten |
+| **Immutable outputs** | Datasets, eval runs, human scores — all versioned, never overwritten. Stored locally (filesystem); cloud persistence (S3/DynamoDB) is a future extension |
 | **Graceful degradation** | Missing evidence → fewer assertions, not errors |
 
 ---
@@ -281,19 +281,15 @@ EVAL RUN
 └── cost                  (total tokens, API calls, estimated spend)
 ```
 
-### Token budget management
+### Resource constraints
 
-The runner uses the size metadata from data collection to stay within model context windows:
+The runner uses size metadata from data collection to plan within model context windows — oversized transcripts, traces, and audio are chunked or summarized before scoring.
 
-- **Transcript batching** — if a transcript exceeds the model's context window, the runner chunks it by conversation turns and scores each chunk, merging results
-- **Trace summarization** — if a trace has too many events, the runner summarizes before sending to the model
-- **Audio chunking** — recordings longer than Gemini's input limit are split into segments; voice quality scores are averaged across segments
-
-### Cost controls
-
-- Configurable concurrency per model API (Gemini, Bedrock) — conservative defaults to avoid quota issues
-- Dry-run mode: plan assertions without calling models — shows what would run and estimated cost
-- Per-run token budget: the runner stops if cumulative token usage exceeds the configured limit
+| Constraint | Mechanism |
+|---|---|
+| **Context window** | Size metadata drives chunking/summarization decisions per test case |
+| **API quotas** | Configurable concurrency per model API (Gemini, Bedrock) |
+| **Cost** | Per-run token budget with dry-run mode for cost estimation |
 
 ---
 
@@ -329,28 +325,23 @@ The reviewer doesn't need to know which partition a conversation belongs to — 
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-### What the reviewer sees
+### Reviewer experience
 
-This is a CLI-driven experience, same environment as `/build` and `/run`. For each conversation:
-
-1. **Transcript displayed turn by turn** — PII-redacted, with turn numbers and speaker labels (caller / agent)
-2. **Recording playable** — if available and audio is not PII-blocked
-3. **Reviewer flags defects** — per turn, selecting from a defect taxonomy (wrong info, pronunciation, timing, guardrail, hallucination, handoff, other)
-4. **Overall verdict** — pass / fail for the conversation, with optional notes
-
-The AI can assist: "highlight turns where the agent might have pronunciation issues" — but the human makes the final judgment. This is the ground truth.
+CLI-driven, same environment as `/build` and `/run`. The reviewer sees PII-redacted transcripts turn by turn, can play redacted audio if available, and flags defects per turn using a standard taxonomy. AI can assist (e.g., surface turns likely to have pronunciation issues) but the human makes the final judgment — this is the ground truth.
 
 ### Defect taxonomy
 
-| Defect type | What it means | Example |
-|---|---|---|
-| **Wrong information** | Agent gave factually incorrect response | Wrong price, wrong policy |
-| **Pronunciation** | Agent mispronounced a word, number, or name | "3,445" read as "three, four, four, five" |
-| **Timing** | Awkward pause, too fast, interrupted the caller | 5-second silence before responding |
-| **Guardrail violation** | Agent responded to something it shouldn't have | Answered an off-topic question |
-| **Hallucination** | Agent fabricated information not in the knowledge base | Invented a hotel amenity |
-| **Handoff** | Escalation to human was awkward or unnecessary | Transferred without explanation |
-| **Persona** | Tone, empathy, or accent doesn't match the configured persona | Too formal for a casual brand |
+Aligns with the assertion types in the eval runner so human and automated scores are directly comparable.
+
+| Defect type | Scope |
+|---|---|
+| **Wrong information** | Factually incorrect response |
+| **Pronunciation** | Mispronounced word, number, or name |
+| **Timing** | Awkward pause, too fast, interruption |
+| **Guardrail violation** | Responded outside configured boundaries |
+| **Hallucination** | Fabricated information not in knowledge base |
+| **Handoff** | Escalation to human was awkward or unnecessary |
+| **Persona** | Tone, empathy, or accent doesn't match configured persona |
 
 ### Human baseline record
 
@@ -403,14 +394,7 @@ Surfaces results and comparisons. This is where the dev sees whether their promp
 
 ### How it works
 
-```
-/report                              → latest run summary
-/report --run <run-id>               → specific run summary
-/report --compare <run-a> <run-b>    → run comparison
-/report --validate <run-id> <baseline-id>  → human vs. automated
-```
-
-The report is generated by an agent that reads the eval run records and human baseline records, computes the comparisons, and presents results in the terminal. No separate dashboard infrastructure needed for MVP.
+An agent reads eval run records and human baseline records, computes the requested comparison, and presents results in the terminal. No separate dashboard infrastructure needed for MVP. Reports reference runs and baselines by ID.
 
 ### Report record
 
@@ -455,38 +439,25 @@ Comprehend's 100 KB input limit means oversized transcripts are chunked before d
 
 **Initial setup** (once per dataset version):
 
-```
-1. /build                      Build golden dataset (collect → merge → inventory → snapshot)
-                                Partitions cases into calibration and eval sets
-
-2. /baseline --dataset v3      Human scores calibration cases (few-shot examples for LLM judge)
-                                Also scores a sample of eval cases (comparison baseline)
-```
+| Step | Skill | What happens |
+|---|---|---|
+| 1 | `/build` | Build golden dataset (collect → merge → inventory → snapshot). Partitions into calibration and eval sets. |
+| 2 | `/baseline` | Human scores calibration cases (few-shot examples for LLM judge) + a sample of eval cases (comparison baseline). |
 
 **Inner loop** (every prompt change):
 
-```
-3. /run --dataset v3           Run automated eval — calibration cases included as few-shot
-                                context, eval cases scored
-                                (seconds to minutes depending on dataset size)
-
-4. /report                     See results — did the change help or hurt?
-
-5. /report --compare v3-run-1 v3-run-2
-                                Compare before and after the prompt change
-```
+| Step | Skill | What happens |
+|---|---|---|
+| 3 | `/run` | Automated eval — calibration cases as few-shot context, eval cases scored. Seconds to minutes. |
+| 4 | `/report` | Results: did the change help or hurt? |
+| 5 | `/report` | Compare two runs: regressions and improvements by scenario. |
 
 **Periodic maintenance:**
 
-```
-6. /report --validate v3-run-2 baseline-1
-                                Check: does the automated eval agree with the human?
-
-7. /build                      Collectors scan the same S3/CW locations — find new
-                                production conversations since last snapshot. Dev picks
-                                cases to add (e.g., a tricky escalation found in prod).
-   /baseline --dataset v4      Score new calibration cases + eval sample
-```
+| Step | Skill | What happens |
+|---|---|---|
+| 6 | `/report` | Validate: does the automated eval agree with the human baseline? |
+| 7 | `/build` → `/baseline` | Collectors scan same artifact locations, find new production conversations. Dev picks cases to add, scores new calibration + eval sample. |
 
 Steps 3–5 are the fast loop. Steps 6–7 are occasional — when the dev wants to validate the automated eval or bring in fresh production data. No separate promotion pipeline: production artifacts already live where the collectors look.
 
