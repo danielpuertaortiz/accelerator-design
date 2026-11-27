@@ -130,7 +130,7 @@ COLLECTOR ITEM
 
 **Collect** is a lightweight metadata listing — paginated calls, completes in seconds. Standard retry (3 retries, exponential backoff). Failed collectors produce partial entries, not errors.
 
-**Merge** groups items by conversation ID using a configured **correlation strategy** (path-based ID, manifest file, timestamp proximity, or filename prefix).
+**Merge** groups items by conversation ID using a configured **correlation strategy** (path-based ID, manifest file, timestamp proximity, or filename prefix). If two artifacts can't be correlated to the same conversation ID, they become separate conversations — each with partial evidence. No fuzzy matching or guessing.
 
 **Inventory** is the interactive step. The dev selects and tags conversations. AI can search transcripts and classify on demand — each transcript PII-redacted at fetch time.
 
@@ -193,6 +193,21 @@ Collectors capture size metadata so downstream capabilities can plan token budge
 | Audio duration (seconds) | Voice scorer estimates Gemini input cost; long recordings may need chunking |
 | Trace event count | Eval runner decides whether to summarize or pass full trace |
 
+### PII in the collection pipeline
+
+Each phase handles PII differently based on what it touches:
+
+| Phase | What it sees | PII handling |
+|---|---|---|
+| **Collect** | Metadata only (URIs, timestamps, sizes) | No content fetched. Conversation IDs may embed caller identifiers (Connect contact IDs derive from phone numbers) — kept unredacted for correlation, never sent to models |
+| **Merge** | Metadata from collect | Correlates on conversation IDs — these must remain unredacted to match evidence across sources. After merge, the dataset uses internal `test_case_id`; original conversation IDs are dropped from the snapshot |
+| **Inventory** | Transcripts fetched on demand for dev browsing | Redacted at fetch time before display. If redaction fails for a transcript, the dev sees metadata only |
+| **Snapshot** | Full evidence (transcripts, traces, audio references) | Full redaction pass before assembly into the dataset. Artifacts that fail redaction are excluded with a logged reason |
+
+Redaction is a gate at snapshot time: if an artifact can't be redacted, it doesn't enter the dataset. The build continues with remaining artifacts. A build where all artifacts fail redaction fails entirely.
+
+Execution traces (CloudWatch logs) go through the same redaction pass as transcripts — logs often contain customer data inline (names, account numbers in log messages).
+
 ---
 
 ## 2. Eval Runner (`/run`)
@@ -236,7 +251,26 @@ The eval runner doesn't guess what to check — it looks at `available_sources[]
 | **Flow correctness** | trace | Bedrock | Did the agent follow the expected execution path? |
 | **Knowledge base usage** | trace | Bedrock | Did the agent query the knowledge base when it should have? |
 
-Assertion types are extensible — new types can be added without changing the runner's core logic.
+### Score matrix
+
+The assertion types above are the defaults. The dev customizes what gets evaluated — and how — through an editable **score matrix**: a configuration file that maps each assertion to its criteria, weight, and pass threshold.
+
+This matters most for voice validation. Different deployments care about different voice quality dimensions — a healthcare bot needs accurate drug name pronunciation, a banking bot needs clear account number readback, a customer service bot might prioritize empathy and tone. Rather than hardcoding a one-size-fits-all voice quality assertion, the score matrix lets the dev break voice quality into the dimensions that matter for their agent and weight them accordingly.
+
+**What the dev edits:**
+
+| Column | What it controls |
+|---|---|
+| **Assertion** | Which assertion to run (built-in or custom name) |
+| **Criteria** | Natural-language description of what "good" looks like — becomes part of the scoring prompt |
+| **Weight** | Relative importance in the overall pass/fail verdict |
+| **Threshold** | Minimum score (0.0–1.0) for this assertion to pass |
+| **Requires** | Evidence types needed (`recording`, `transcript`, `trace`) |
+| **Scored by** | Which model evaluates it (`gemini` for audio, `bedrock` for text) |
+
+A team adds a new assertion by adding a row — no code changes to the runner. They can also disable built-in assertions by removing rows or adjust sensitivity by changing thresholds.
+
+The score matrix is versioned with the dataset. The eval run record captures which matrix version was used, so comparisons between runs account for scoring criteria changes.
 
 ### Calibration examples in the scoring prompt
 
@@ -293,6 +327,26 @@ The runner uses size metadata from data collection to plan within model limits. 
 | **API quotas** | Configurable concurrency per model API (Gemini, Bedrock) | Prevents throttling; default conservative to avoid quota exhaustion on shared accounts |
 | **Cost** | Per-run token budget; dry-run mode for cost estimation before scoring | A single eval run can invoke hundreds of model calls — budget prevents runaway spend |
 
+### Cost model
+
+The framework is designed to minimize external API costs by leveraging the dev tool's existing model access.
+
+| Component | Cost approach | Per-run estimate (100 cases, 3 min avg) |
+|---|---|---|
+| **Bedrock text assertions** | Runs through the host dev tool (Claude Code, Kiro) — covered by existing subscription. No separate API calls. | $0 incremental |
+| **Gemini audio scoring** | External API — only cost with no subscription equivalent. ~$0.002/min of audio. | ~$0.60 |
+| **PII redaction** | One-time at dataset build. Contact Lens: $0 incremental (already enabled). Comprehend: ~$0.50–2 per build. | N/A (not per-run) |
+| **S3/CloudWatch APIs** | Metadata listing at dataset build. | Pennies |
+| **Human baseline** | Person-hours, no API cost. | N/A |
+
+**Per prompt iteration cost: under $1** when text assertions use the dev tool's subscription. Gemini audio is the only external spend. This compares to hours-to-days of manual testing per change.
+
+### Storage
+
+All immutable records — datasets, eval runs, human baselines, reports — are stored in a local directory structure within the project. Each record is a versioned JSON file, named by its ID (e.g., `runs/run-2026-11-27-001.json`). No database, no cloud services for MVP.
+
+This keeps the framework dependency-free and version-controllable (the records directory can live in the repo or alongside it). Cloud persistence (S3, DynamoDB) is a future extension for teams that need shared access or long-term retention across machines.
+
 ---
 
 ## 3. Human Eval Baseline (`/baseline`)
@@ -302,17 +356,20 @@ Human reviewers score conversations from the golden dataset. This serves two dis
 1. **Calibration set** — human scores on calibration-partition cases become the few-shot examples that teach the LLM judge what defects look like. These are scored first, before any automated eval runs.
 2. **Comparison baseline** — human scores on a sample of eval-partition cases become the ground truth to compare against automated results. If the automated eval passes a conversation a human would fail, that's a false negative. If it fails one the human would pass, that's a false positive.
 
-The reviewer doesn't need to know which partition a conversation belongs to — the skill presents conversations and collects scores either way.
+The skill manages which cases to present based on what's needed. The reviewer sees the partition label (calibration or eval) so they have context — calibration cases teach the LLM judge, eval cases validate the automated results — but the scoring process is the same either way.
+
+**Sequencing:** Calibration cases are scored first, before any `/run` invocation, since the eval runner needs them as few-shot examples. Eval-partition cases can be scored at any time after.
 
 ### How it works
 
 ```
-/baseline --dataset v3
+/baseline --dataset v3 [--partition calibration|eval]
 
 ┌─────────────────────────────────────────────────────────────────────┐
 │ PRESENT  (interactive)                                             │
-│  Show conversation to reviewer: transcript turn by turn,            │
-│  play recording if available                                        │
+│  Show conversation to reviewer: transcript turn by turn             │
+│  Audio: open recording in system default player (already            │
+│  PII-redacted in the dataset — no fetch-time processing)            │
 │  ──→ Reviewer reads/listens                                         │
 ├─────────────────────────────────────────────────────────────────────┤
 │ SCORE  (interactive)                                               │
@@ -329,7 +386,9 @@ The reviewer doesn't need to know which partition a conversation belongs to — 
 
 ### Reviewer experience
 
-CLI-driven, same environment as `/build` and `/run`. The reviewer sees PII-redacted transcripts turn by turn, can play redacted audio if available, and flags defects per turn using a standard taxonomy. AI can assist (e.g., surface turns likely to have pronunciation issues) but the human makes the final judgment — this is the ground truth.
+CLI-driven, same environment as `/build` and `/run`. The reviewer sees PII-redacted transcripts turn by turn and can listen to the recording — the skill opens the audio file in the system's default media player (the recording is already PII-redacted in the dataset, so no additional processing is needed). The reviewer flags defects per turn using a standard taxonomy. AI can assist (e.g., surface turns likely to have pronunciation issues) but the human makes the final judgment — this is the ground truth.
+
+The skill shows the partition label so the reviewer knows the purpose: "calibration — your scores will become few-shot examples for the LLM judge" vs. "eval — your scores will be compared against automated results." The optional `--partition` flag lets the reviewer focus on one set at a time.
 
 ### Defect taxonomy
 
@@ -396,7 +455,11 @@ Surfaces results and comparisons. This is where the dev sees whether their promp
 
 ### How it works
 
-An agent reads eval run records and human baseline records, computes the requested comparison, and presents results in the terminal. No separate dashboard infrastructure needed for MVP. Reports reference runs and baselines by ID.
+An agent reads eval run records and human baseline records, computes the requested comparison, and generates a self-contained HTML report. The skill opens it in the default browser automatically.
+
+HTML over terminal output because comparison is visual — the dev needs to scan score deltas, spot regressions in a table, and drill into failing test cases. A static HTML file with sortable tables, color-coded pass/fail, and collapsible assertion detail does this without any dashboard infrastructure. No server, no dependencies — just a file the dev can also share with the team.
+
+Reports reference runs and baselines by ID. The HTML is ephemeral — not committed to the repo. The JSON record is the source of truth; `/report` can regenerate the HTML from any stored record at any time.
 
 ### Report record
 
@@ -416,24 +479,48 @@ REPORT
 
 ## PII handling (cross-cutting)
 
-**Rule: no unredacted PII reaches any model or AI tool.**
+**Rule: no unredacted PII reaches any model, AI tool, or persisted dataset.**
 
-| When | What happens |
+PII redaction is mandatory for dataset generation — the framework will not snapshot content without it. But the redaction provider is pluggable: the dev chooses which provider fits their environment.
+
+### Redaction providers
+
+The framework supports pluggable PII redaction providers. Each provider implements the same contract (accept text, return redacted text with entity annotations). The dev configures which provider to use per deployment.
+
+| Provider | Text | Audio | Best for |
+|---|---|---|---|
+| **Contact Lens** | Pre-redacted transcript | PII segments replaced with silence | Connect deployments — zero extra work, covers both text and audio automatically post-call |
+| **Amazon Comprehend** | On-demand API redaction | No | Fallback for content Contact Lens doesn't cover (CloudWatch traces, non-Connect sources). 100 KB/request limit — oversized transcripts chunked automatically |
+| **Presidio** (future) | On-demand, self-hosted | No | Teams needing no cloud dependency, custom entity recognizers, or on-prem requirements |
+
+**Layered approach:** Contact Lens pre-redacted artifacts are used when available (cheapest, covers audio). Comprehend handles everything else. The framework checks for pre-redacted content first, falls back to the configured provider.
+
+### Where PII appears
+
+| Stage | PII handling |
 |---|---|
-| **Data collection** | Collect pulls metadata only. Content PII-redacted at fetch time. |
-| **Eval runner** | Receives PII-redacted content from the dataset. Models never see raw PII. |
-| **Human baseline** | Reviewer sees PII-redacted transcripts and hears redacted audio (if Contact Lens). |
-| **Reporting** | Works on scores and verdicts, not raw content. No PII. |
+| **Data collection** | Metadata travels freely. Content redacted at fetch time via the configured provider. Per-phase detail in `/build` PII subsection above. |
+| **Eval runner** | Receives only redacted content from the dataset. Models never see raw PII. |
+| **Human baseline** | Reviewer sees redacted transcripts and hears redacted audio (where available). |
+| **Reporting** | Works on scores and verdicts, not raw content. No PII exposure. |
 
-**Redaction tiers:**
+### Entity types
 
-| Tier | Transcript | Audio |
-|---|---|---|
-| **Full audio + text** (e.g., Contact Lens) | Pre-redacted transcript | Redacted audio available for voice scoring |
-| **Text only** (e.g., Comprehend) | Redact via Comprehend at fetch | Audio blocked — skip voice quality scoring |
-| **None** | Blocked until PII pipeline configured | Audio blocked |
+Configurable per deployment. Default set covers names, addresses, phone numbers, account numbers, SSNs, and credit card numbers. Teams narrow or extend based on their compliance requirements. The entity configuration is passed to whichever provider is active.
 
-Comprehend's 100 KB input limit means oversized transcripts are chunked before detection, results merged.
+### Redaction strategy
+
+Placeholder tokens (`[NAME]`, `[PHONE]`, `[SSN]`) rather than synthetic values. Simpler, auditable, and avoids introducing false content into the evaluation dataset. All providers normalize to the same token format regardless of their native output.
+
+**Trade-off:** the LLM judge can't evaluate whether the agent addressed the caller by name correctly. Acceptable — name usage is a persona concern, not a correctness concern, and can be checked via the execution trace instead.
+
+### Audio redaction
+
+Only Contact Lens provides audio redaction today. When no audio redaction is available, audio is blocked and voice quality assertions are skipped. The scorer must distinguish Contact Lens redaction silence from actual timing defects.
+
+### Failure policy
+
+Redaction is a gate, not best-effort. If the configured provider is unavailable or errors on a given artifact, that artifact is excluded — not silently degraded. See `/build` PII subsection for how this plays out per pipeline phase.
 
 ---
 
@@ -467,11 +554,11 @@ Steps 3–5 are the fast loop. Steps 6–7 are occasional — when the dev wants
 
 ## Open questions
 
-1. **Cross-account access** — IAM implications when Connect, S3, and CloudWatch live in different accounts.
-2. **Mixed-source datasets** — Can a single golden dataset mix conversations from different collectors or correlation strategies?
-3. **Inter-rater reliability** — When multiple humans score the baseline, how do we measure agreement?
-4. **Gemini latency and cost** — Audio evaluation via Gemini API: what's the per-recording latency and cost at 50–200 recordings per run?
-5. **Assertion extensibility** — How does a team add a custom assertion type (e.g., compliance-specific checks)?
+1. ~~**Cross-account access**~~ — Resolved. Authentication is the collector's responsibility, not the framework's. Each collector handles its own login — via MCP browser-based login with user credentials, tokens, or whatever the source requires. This keeps the framework extensible: a new collector for a different account or provider just brings its own auth.
+2. ~~**Mixed-source datasets**~~ — Resolved. Multiple collectors feed into a single dataset by design — that's the point of the merge phase. Each collector contributes one evidence type from one source; merge correlates them by conversation ID. One constraint: a dataset uses a single correlation strategy (path-based ID, manifest, etc.) to keep merge deterministic. Mixing correlation strategies within one dataset risks ambiguous matches.
+3. ~~**Inter-rater reliability**~~ — Resolved. Single reviewer for now. The baseline is scored infrequently (initial calibration + occasional refresh), so multi-reviewer agreement and conflict resolution aren't worth the investment at this scale. Revisit if the team grows or baseline frequency increases.
+4. ~~**Gemini latency and cost**~~ — Resolved. Gemini tokenizes audio at ~32 tokens/second (~1,920 tokens/min). At Flash-tier pricing (~$0.002/min of audio), a 200-recording run with 3-min average conversations costs ~$1.15. Latency is seconds per recording — parallel scoring keeps wall-clock time manageable. Cost is negligible at this scale; 9.5-hour per-prompt limit is well above any single conversation.
+5. ~~**Assertion extensibility**~~ — Addressed by the score matrix: devs add rows to the matrix, no code changes needed.
 
 ## Future extensions
 

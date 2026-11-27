@@ -1,0 +1,184 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="arch" name="AI Voice Testing Architecture">
+    <mxGraphModel dx="1422" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- ===== AWS DATA SOURCES ===== -->
+        <mxCell id="aws" value="&lt;b&gt;AWS Data Sources&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;container=1;collapsible=0;fillColor=#f5f5f5;strokeColor=#666666;fontSize=13;verticalAlign=top;spacingTop=5;" vertex="1" parent="1">
+          <mxGeometry x="250" y="20" width="700" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="s3r" value="S3&lt;br&gt;Recordings" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=#ffffff;fillColor=#3F8624;shape=mxgraph.aws4.s3;fontSize=10;" vertex="1" parent="aws">
+          <mxGeometry x="50" y="30" width="48" height="48" as="geometry"/>
+        </mxCell>
+        <mxCell id="s3t" value="S3&lt;br&gt;Transcripts" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=#ffffff;fillColor=#3F8624;shape=mxgraph.aws4.s3;fontSize=10;" vertex="1" parent="aws">
+          <mxGeometry x="210" y="30" width="48" height="48" as="geometry"/>
+        </mxCell>
+        <mxCell id="cw" value="CloudWatch&lt;br&gt;Traces" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=#ffffff;fillColor=#E7157B;shape=mxgraph.aws4.cloudwatch;fontSize=10;" vertex="1" parent="aws">
+          <mxGeometry x="380" y="30" width="48" height="48" as="geometry"/>
+        </mxCell>
+        <mxCell id="conn" value="Amazon&lt;br&gt;Connect" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=#ffffff;fillColor=#E7157B;shape=mxgraph.aws4.connect;fontSize=10;" vertex="1" parent="aws">
+          <mxGeometry x="550" y="30" width="48" height="48" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== /build — Data Collection ===== -->
+        <mxCell id="build" value="&lt;b&gt;/build&lt;/b&gt; — Data Collection" style="rounded=1;whiteSpace=wrap;html=1;container=1;collapsible=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13;verticalAlign=top;spacingTop=5;" vertex="1" parent="1">
+          <mxGeometry x="150" y="170" width="900" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="collect" value="Collect" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6c8ebf;" vertex="1" parent="build">
+          <mxGeometry x="30" y="50" width="120" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="merge" value="Merge" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6c8ebf;" vertex="1" parent="build">
+          <mxGeometry x="190" y="50" width="120" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="inv" value="Inventory&lt;br&gt;&lt;i style=&quot;font-size:10px&quot;&gt;(interactive)&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6c8ebf;" vertex="1" parent="build">
+          <mxGeometry x="350" y="50" width="120" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="snap" value="Snapshot" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6c8ebf;" vertex="1" parent="build">
+          <mxGeometry x="510" y="50" width="120" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="pii" value="PII Provider&lt;br&gt;&lt;i style=&quot;font-size:10px&quot;&gt;(pluggable)&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6c8ebf;dashed=1;dashPattern=8 8;" vertex="1" parent="build">
+          <mxGeometry x="700" y="35" width="160" height="65" as="geometry"/>
+        </mxCell>
+        <mxCell id="pii-items" value="Contact Lens | Comprehend | Presidio" style="text;html=1;fontSize=9;fontColor=#666666;align=center;" vertex="1" parent="build">
+          <mxGeometry x="700" y="100" width="160" height="25" as="geometry"/>
+        </mxCell>
+        <!-- Build internal edges -->
+        <mxCell id="e-col-mer" style="edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" source="collect" target="merge" parent="build">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-mer-inv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" source="merge" target="inv" parent="build">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-inv-snap" style="edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" source="inv" target="snap" parent="build">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-pii-snap" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;" edge="1" source="pii" target="snap" parent="build">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Golden Dataset ===== -->
+        <mxCell id="dataset" value="&lt;b&gt;Golden Dataset&lt;/b&gt;&lt;br&gt;Calibration | Eval" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="460" y="360" width="280" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== /baseline — Human Eval ===== -->
+        <mxCell id="baseline" value="&lt;b&gt;/baseline&lt;/b&gt; — Human Eval" style="rounded=1;whiteSpace=wrap;html=1;container=1;collapsible=0;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=13;verticalAlign=top;spacingTop=5;" vertex="1" parent="1">
+          <mxGeometry x="100" y="500" width="380" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="present" value="Present" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#82b366;" vertex="1" parent="baseline">
+          <mxGeometry x="20" y="45" width="100" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="hscore" value="Score" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#82b366;" vertex="1" parent="baseline">
+          <mxGeometry x="145" y="45" width="100" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="hrecord" value="Record" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#82b366;" vertex="1" parent="baseline">
+          <mxGeometry x="265" y="45" width="100" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="audio-note" value="Audio: system player&lt;br&gt;Partition label visible" style="text;html=1;fontSize=9;fontColor=#666666;align=center;" vertex="1" parent="baseline">
+          <mxGeometry x="100" y="100" width="160" height="30" as="geometry"/>
+        </mxCell>
+        <!-- Baseline internal edges -->
+        <mxCell id="e-pre-hsc" style="edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" source="present" target="hscore" parent="baseline">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-hsc-hrec" style="edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" source="hscore" target="hrecord" parent="baseline">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== /run — Eval Runner ===== -->
+        <mxCell id="run" value="&lt;b&gt;/run&lt;/b&gt; — Eval Runner" style="rounded=1;whiteSpace=wrap;html=1;container=1;collapsible=0;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;verticalAlign=top;spacingTop=5;" vertex="1" parent="1">
+          <mxGeometry x="560" y="500" width="490" height="170" as="geometry"/>
+        </mxCell>
+        <mxCell id="plan" value="Plan" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#d6b656;" vertex="1" parent="run">
+          <mxGeometry x="20" y="45" width="90" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="ascore" value="Score" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#d6b656;" vertex="1" parent="run">
+          <mxGeometry x="160" y="45" width="130" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="results" value="Results" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#d6b656;" vertex="1" parent="run">
+          <mxGeometry x="340" y="45" width="120" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="gemini" value="Gemini&lt;br&gt;&lt;i style=&quot;font-size:10px&quot;&gt;(audio)&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE4EC;strokeColor=#C62828;fontSize=11;" vertex="1" parent="run">
+          <mxGeometry x="130" y="110" width="90" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="bedrock" value="Bedrock&lt;br&gt;&lt;i style=&quot;font-size:10px&quot;&gt;(text)&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1565C0;fontSize=11;" vertex="1" parent="run">
+          <mxGeometry x="240" y="110" width="90" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="smatrix" value="Score Matrix&lt;br&gt;&lt;i style=&quot;font-size:10px&quot;&gt;(editable)&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#d6b656;dashed=1;dashPattern=8 8;fontSize=11;" vertex="1" parent="run">
+          <mxGeometry x="360" y="110" width="110" height="45" as="geometry"/>
+        </mxCell>
+        <!-- Run internal edges -->
+        <mxCell id="e-pln-asc" style="edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" source="plan" target="ascore" parent="run">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-asc-res" style="edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" source="ascore" target="results" parent="run">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-gem-asc" style="rounded=0;" edge="1" source="gemini" target="ascore" parent="run">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-bed-asc" style="rounded=0;" edge="1" source="bedrock" target="ascore" parent="run">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-sm-pln" style="rounded=0;dashed=1;" edge="1" source="smatrix" target="plan" parent="run">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== /report — Score & Report ===== -->
+        <mxCell id="report" value="&lt;b&gt;/report&lt;/b&gt; — Score &amp;amp; Report" style="rounded=1;whiteSpace=wrap;html=1;container=1;collapsible=0;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=13;verticalAlign=top;spacingTop=5;" vertex="1" parent="1">
+          <mxGeometry x="300" y="740" width="600" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="json-rec" value="JSON Records&lt;br&gt;&lt;i style=&quot;font-size:10px&quot;&gt;(immutable)&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="report">
+          <mxGeometry x="30" y="35" width="120" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="html-out" value="HTML Report&lt;br&gt;&lt;i style=&quot;font-size:10px&quot;&gt;(ephemeral)&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="report">
+          <mxGeometry x="230" y="35" width="120" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="views" value="Run Summary&lt;br&gt;Run Comparison&lt;br&gt;Human vs. Automated" style="text;html=1;fontSize=10;fontColor=#666666;align=left;" vertex="1" parent="report">
+          <mxGeometry x="420" y="30" width="150" height="50" as="geometry"/>
+        </mxCell>
+        <!-- Report internal edge -->
+        <mxCell id="e-json-html" style="edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" source="json-rec" target="html-out" parent="report">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== MAIN FLOW EDGES ===== -->
+        <mxCell id="e-aws-build" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeWidth=2;strokeColor=#333333;" edge="1" source="aws" target="build" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-build-ds" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeWidth=2;strokeColor=#333333;" edge="1" source="build" target="dataset" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-ds-base" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeWidth=2;strokeColor=#333333;" edge="1" source="dataset" target="baseline" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-ds-run" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeWidth=2;strokeColor=#333333;" edge="1" source="dataset" target="run" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-base-rpt" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeWidth=2;strokeColor=#333333;" edge="1" source="baseline" target="report" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e-run-rpt" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeWidth=2;strokeColor=#333333;" edge="1" source="run" target="report" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== LEGEND ===== -->
+        <mxCell id="legend" value="&lt;b&gt;Legend&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;container=1;collapsible=0;fillColor=#f5f5f5;strokeColor=#CCCCCC;fontSize=11;verticalAlign=top;spacingTop=3;" vertex="1" parent="1">
+          <mxGeometry x="20" y="740" width="240" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg-solid" value="── Data flow" style="text;html=1;fontSize=10;fontColor=#333333;align=left;" vertex="1" parent="legend">
+          <mxGeometry x="10" y="25" width="120" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg-dashed" value="- - Pluggable / configurable" style="text;html=1;fontSize=10;fontColor=#333333;align=left;" vertex="1" parent="legend">
+          <mxGeometry x="10" y="45" width="200" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg-storage" value="Storage: local JSON (immutable)" style="text;html=1;fontSize=10;fontColor=#666666;align=left;" vertex="1" parent="legend">
+          <mxGeometry x="10" y="65" width="200" height="20" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
